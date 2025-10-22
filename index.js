@@ -1,17 +1,37 @@
 const { Command } = require('commander');
-const fs = require('fs').promises;
+const http = require('http');
+const fs = require('fs');
 
 const program = new Command();
 
 program
-  .option('-f, --file <path>', 'path to json file', 'iris.json')
-  .option('-p, --print', 'print dataset to console')
+  .requiredOption('-i, --input <path>', 'path to input file')
+  .requiredOption('-h, --host <host>', 'server host')
+  .requiredOption('-p, --port <port>', 'server port')
   .parse(process.argv);
 
 const options = program.opts();
 
-if (options.print) {
-  fs.readFile(options.file, 'utf8')
-    .then(data => console.log(data))
-    .catch(err => console.error('Error reading file:', err));
+// Перевірка на те, чи існує файл
+if (!fs.existsSync(options.input)) {
+  console.error('Cannot find input file');
+  process.exit(1);
 }
+
+// Створення HTTP сервера
+const server = http.createServer((req, res) => {
+  fs.readFile(options.input, 'utf8', (err, data) => {
+    if (err) {
+      res.writeHead(500);
+      res.end('Error reading file');
+    } else {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(data);
+    }
+  });
+});
+
+// Слухаємо вказаний хост і порт
+server.listen(options.port, options.host, () => {
+  console.log(`Server running at http://${options.host}:${options.port}/`);
+});
